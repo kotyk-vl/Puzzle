@@ -17,24 +17,19 @@ namespace Puzzles
     {
         public Form1()
         {
-            InitializeComponent();
-            InitializeBackgroundWorker();
-            
+            InitializeComponent();        
         }
         public int Size { get; set; } = 2;
+        public int ImageWidth { get; set; }
+        public int ImageHeight { get; set; }
         public string Path { get; set; } = Environment.CurrentDirectory + "..\\..\\..\\Image";
         Dictionary<int, PictureBoxE> pictureBoxes;
-        Bitmap Btm = null;
+        Bitmap[] puzzles;
+        Bitmap Btm;
         private int highestPercentageReached = 0;
         private void Form1_Load(object sender, EventArgs e)
         {
 
-        }
-        private void InitializeBackgroundWorker()
-        {
-            backgroundWorker1.DoWork +=new DoWorkEventHandler(backgroundWorker1_DoWork);
-            backgroundWorker1.RunWorkerCompleted += new RunWorkerCompletedEventHandler(backgroundWorker1_RunWorkerCompleted);
-            backgroundWorker1.ProgressChanged +=new ProgressChangedEventHandler(backgroundWorker1_ProgressChanged);
         }
         #region FormSender
         private void Rb_CheckedChanged(object sender, EventArgs e)
@@ -109,15 +104,19 @@ namespace Puzzles
         
         private void AutoPuzzle_Click(object sender, EventArgs e)
         {
-            rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = false;
-            btn_load_puz.Enabled = btn_auto.Enabled = btn_sel_img.Enabled = false;
-            for (int i = 0; i < pictureBoxes.Count; i++)
+            if (pictureBoxes != null)
             {
-                pictureBoxes[i].Enabled = false;
+                rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = false;
+                btn_load_puz.Enabled = btn_auto.Enabled = btn_sel_img.Enabled = false;
+
+                for (int i = 0; i < pictureBoxes.Count; i++)
+                {
+                    pictureBoxes[i].Enabled = false;
+                }
+                highestPercentageReached = 0;
+                label1.Text = "Wait... Puzzles are being collected automatically!";
+                backgroundWorker1.RunWorkerAsync();
             }
-            highestPercentageReached = 0;
-            label1.Text = "Wait... Puzzles are being collected automatically!";
-            backgroundWorker1.RunWorkerAsync();
         }
         #endregion
         #region CheckingPuzzle
@@ -143,29 +142,22 @@ namespace Puzzles
         }
         private void AutoPuzzle(BackgroundWorker worker)
         {
-            if (pictureBoxes != null)
-            {
-                var count = pictureBoxes.Count;
-                Bitmap[] bitmaps = new Bitmap[count];
-                for (int i = 0; i < count; i++)
-                {
-                    if (pictureBoxes[i].Image.Height > pictureBoxes[i].Image.Width)
-                        pictureBoxes[i].Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
-                    bitmaps[i] = (Bitmap)pictureBoxes[i].Image;
-                }
-                Bitmap[] puzzles = new Bitmap[bitmaps.Length];
-                GetPuzzle(bitmaps, ref puzzles, worker);
-                for (int i = 0; i < puzzles.Length; i++)
-                {
-                    pictureBoxes[i].Image = puzzles[i];
-                    pictureBoxes[i].Number = i;
-                    pictureBoxes[i].RotateCount = 0;
-                }
-                int width = pictureBoxes[0].Image.Width;
-                int heiht = pictureBoxes[0].Image.Height;
-                AddPuzzleToForm();
-                Btm = ConcatImage(puzzles, width, heiht, Size);   
-            }
+             var count = pictureBoxes.Count;
+             Bitmap[] bitmaps = new Bitmap[count];
+             for (int i = 0; i < count; i++)
+             {
+                if (pictureBoxes[i].Image.Height != ImageHeight || pictureBoxes[i].Image.Width != ImageWidth)
+                    pictureBoxes[i].Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                bitmaps[i] = (Bitmap)pictureBoxes[i].Image;
+             }
+             puzzles = new Bitmap[bitmaps.Length];
+             GetPuzzle(bitmaps, ref puzzles, worker);
+             for (int i = 0; i < puzzles.Length; i++)
+             {
+                 pictureBoxes[i].Image = puzzles[i];
+                 pictureBoxes[i].Number = i;
+                 pictureBoxes[i].RotateCount = 0;
+             }
         }
         #endregion
         private void SeparateSaveImg(Bitmap bitmap)
@@ -182,7 +174,7 @@ namespace Puzzles
                     try
                     {
                         DirectoryInfo directory = new DirectoryInfo(Path);
-                        var files = directory.EnumerateFiles("*.png");
+                        var files = directory.EnumerateFiles("*.jpeg");
                         foreach (FileInfo file in files)
                         {
                             file.Delete();
@@ -200,13 +192,14 @@ namespace Puzzles
                     int y = i / Size;
                     rect = new Rectangle(btm_width * x, btm_heigh * y, btm_width, btm_heigh);
                     var btm = bitmap.Clone(rect, PixelFormat.DontCare);
-                    btm.Save($"{Path}\\{i:d2}.png");
+                    btm.Save($"{Path}\\{i:d2}.jpeg");
                     btm.Dispose();
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Oops, something wrong: {ex.Message}", "Warning");
+                //MessageBox.Show($"Oops, something wrong: {ex.Message}", "Warning");
+                MessageBox.Show($"Oops1, something wrong: {ex.Message}", "Warning");
             }
 
         }
@@ -216,7 +209,7 @@ namespace Puzzles
             {
                 pictureBoxes = new Dictionary<int, PictureBoxE>();
                 int key, rotate;
-                string[] images = Directory.GetFiles(path, "*.png");
+                string[] images = Directory.GetFiles(path, "*.jpeg");
                 Size = (int)Math.Sqrt(images.Length);
                 for (int i = 0; i < images.Length; i++)
                 {
@@ -226,6 +219,7 @@ namespace Puzzles
                     pB.Name = $"pb_puzz{i}";
                     pB.Number = i;
                     pB.SizeMode = PictureBoxSizeMode.StretchImage;
+                    //pB.SizeMode = PictureBoxSizeMode.Zoom;
                     pB.AllowDrop = true;
                     using (FileStream fileStream = new FileStream(image, FileMode.Open))
                     {
@@ -233,14 +227,17 @@ namespace Puzzles
                     }     
                     pB.Width = pnl_puzzl.Width / Size;
                     pB.Height = pnl_puzzl.Height / Size;
+                    ImageWidth = pB.Image.Width;
+                    ImageHeight = pB.Image.Height;
                     // Add Events
                     pB.DragEnter += new DragEventHandler(PictureBox_DragEnter);
                     pB.DragDrop += new DragEventHandler(PictureBox_DragDrop);
                     pB.MouseDown += new MouseEventHandler(PictureBox_MouseDown);
                     //Rotate Puzzles
-                    rotate = new Random().Next(0,4);           // number of rotates
+                    rotate = new Random().Next(0, 4);           // number of rotates
                     if (i == 0 || i == images.Length - 1)
-                        rotate = new Random().Next(3, 4);
+                    //rotate = new Random().Next(3, 4);
+                    rotate = 0;
                     pB.Image.RotateFlip((RotateFlipType)rotate);
                     pB.RotateCount = rotate;
                     //Mixed puzzle
@@ -302,7 +299,7 @@ namespace Puzzles
             catch (Exception ex)
             {
                 MessageBox.Show($"Cannot create image because: {ex.Message}", "Warning");
-                return null;
+                return Btm;
             }
        
         }
@@ -352,16 +349,57 @@ namespace Puzzles
             }
             return difference;
         }
-        private Bitmap GetNextImage(Bitmap image, List<Bitmap> images, ref double difference, bool right_img)
+        private Bitmap GetNextRightImage(Bitmap image, List<Bitmap> images, ref double difference)
         {
             double min = Int32.MaxValue;
             Color[,] img_1 = GetPixels(image);
             Bitmap result = null;
-           
+
             for (int i = 0; i < images.Count; i++)
             {
                 Color[,] img_2 = GetPixels(images[i]);
-                double k = right_img == true ? RightLeftCompare(img_1, img_2) : BottomTopCompare(img_1, img_2);
+                double k =  RightLeftCompare(img_1, img_2);
+                if (min > k)
+                {
+                    result = images[i];
+                    min = k;
+                }
+            }
+            difference += min;
+            return result;
+        }
+        private Bitmap GetNextBottomImage(Bitmap image, List<Bitmap> images, ref double difference)
+        {
+            double min = Int32.MaxValue;
+            Color[,] img_1 = GetPixels(image);
+            Bitmap result = null;
+
+            for (int i = 0; i < images.Count; i++)
+            {
+                Color[,] img_2 = GetPixels(images[i]);
+                double k = BottomTopCompare(img_1, img_2);
+                if (min > k)
+                {
+                    result = images[i];
+                    min = k;
+                }
+            }
+            difference += min;
+            return result;
+        }
+        private Bitmap GetNextRightBottomImg(Bitmap leftImage, Bitmap topImage, List<Bitmap> images, ref double difference)
+        {
+            double min = Int32.MaxValue;
+            Color[,] img_left = GetPixels(leftImage);
+            Color[,] img_top = GetPixels(topImage);
+            Bitmap result = null;
+
+            for (int i = 0; i < images.Count; i++)
+            {
+                Color[,] img_2 = GetPixels(images[i]);
+                double leftValue = RightLeftCompare(img_left, img_2);
+                double topValue = BottomTopCompare(img_top, img_2);
+                double k = leftValue + topValue;
                 if (min > k)
                 {
                     result = images[i];
@@ -395,13 +433,16 @@ namespace Puzzles
                     }
                     for (int j = 0; j < images.Length - 1; j++)
                     {
-                        if (j % countImg == countImg - 1)
-                        {
-                            puzzl = GetNextImage(temp_puzzles[j - countImg + 1], compare_btm, ref total, false);
+
+                        if (j < countImg - 1)
+                        {         
+                            puzzl = GetNextRightImage(temp_puzzles[j], compare_btm, ref total);
                         }
+                        else if(j % countImg == countImg - 1)
+                            puzzl = GetNextBottomImage(temp_puzzles[j - countImg + 1], compare_btm, ref total);
                         else
                         {
-                            puzzl = GetNextImage(temp_puzzles[j], compare_btm, ref total, true);
+                            puzzl = GetNextRightBottomImg(temp_puzzles[j], temp_puzzles[j - countImg + 1], compare_btm, ref total);
                         }
                         temp_puzzles[j + 1] = puzzl;
 
@@ -443,7 +484,15 @@ namespace Puzzles
             {
                 pictureBoxes[i].Enabled = true;
             }
-            pb_img.Image = Btm;
+            int width = pictureBoxes[0].Image.Width;
+            int heiht = pictureBoxes[0].Image.Height;
+            var btm = ConcatImage(puzzles, width, heiht, Size);
+            if (pb_img.Image == null) 
+            {
+                Btm = btm;
+                pb_img.Image = btm;
+            }
+            
             label1.Text = "Done";
         }
 
@@ -474,7 +523,7 @@ namespace Puzzles
                     btm.RotateFlip(RotateFlipType.Rotate90FlipNone);
                     pb.Image = (Bitmap)btm.Clone();
                     ++pb.RotateCount;
-                }
+                }        
                 CheckPuzzle();
             }
             catch (Exception ex)
