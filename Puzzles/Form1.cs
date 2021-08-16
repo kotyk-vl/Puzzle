@@ -19,7 +19,7 @@ namespace Puzzles
         {
             InitializeComponent();        
         }
-        public int Size { get; set; } = 2;
+        public int Size { get; set; } = 4;
         public int ImageWidth { get; set; }
         public int ImageHeight { get; set; }
         public string Path { get; set; } = Environment.CurrentDirectory + "..\\..\\..\\Image";
@@ -40,10 +40,8 @@ namespace Puzzles
                 if (rb != null)
                 {
                     if (rb.Checked) {
-                        Size = rb_2.Checked == true ? 2 :
-                            rb_3.Checked == true ? 3 :
-                            rb_4.Checked == true ? 4 :
-                            rb_5.Checked == true ? 5 : 6;
+                        Size = rb_3.Checked == true ? 3 :
+                            rb_4.Checked == true ? 4 : 5;
                         progressBar1.Value = 0;
                         label1.Text = "";
                         if (Btm != null)
@@ -67,7 +65,7 @@ namespace Puzzles
                 };
                 if (open.ShowDialog() == DialogResult.OK)
                 {
-                    rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = true;
+                    rb_3.Enabled = rb_4.Enabled = rb_5.Enabled  = true;
                     Btm = new Bitmap(open.FileName);
                     pb_img.Image = Btm;
                     SeparateSaveImg(Btm);
@@ -106,7 +104,7 @@ namespace Puzzles
         {
             if (pictureBoxes != null)
             {
-                rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = false;
+                rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = false;
                 btn_load_puz.Enabled = btn_auto.Enabled = btn_sel_img.Enabled = false;
 
                 for (int i = 0; i < pictureBoxes.Count; i++)
@@ -137,7 +135,7 @@ namespace Puzzles
                 pb_img.Image = Btm;
                 label1.Text = "Congratulations!!!\nYou have collected puzzles";
                 MessageBox.Show("You won", "Congratulations!", MessageBoxButtons.OK, MessageBoxIcon.Asterisk);
-                rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = true;
+                rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = true;
             }
         }
         private void AutoPuzzle(BackgroundWorker worker)
@@ -149,6 +147,7 @@ namespace Puzzles
                 if (pictureBoxes[i].Image.Height != ImageHeight || pictureBoxes[i].Image.Width != ImageWidth)
                     pictureBoxes[i].Image.RotateFlip(RotateFlipType.Rotate90FlipNone);
                 bitmaps[i] = (Bitmap)pictureBoxes[i].Image;
+                bitmaps[i].Tag = i;
              }
              puzzles = new Bitmap[bitmaps.Length];
              GetPuzzle(bitmaps, ref puzzles, worker);
@@ -165,8 +164,6 @@ namespace Puzzles
             try
             {
                 Rectangle rect;
-                int btm_width = bitmap.Width / Size;
-                int btm_heigh = bitmap.Height / Size;
                 if (!Directory.Exists(Path))
                     Directory.CreateDirectory(Path);
                 else
@@ -174,7 +171,7 @@ namespace Puzzles
                     try
                     {
                         DirectoryInfo directory = new DirectoryInfo(Path);
-                        var files = directory.EnumerateFiles("*.jpeg");
+                        var files = directory.EnumerateFiles("*.jpg");
                         foreach (FileInfo file in files)
                         {
                             file.Delete();
@@ -185,16 +182,38 @@ namespace Puzzles
                         MessageBox.Show(ex.Message);
                     }
                 }
-
-                for (int i = 0; i < Size * Size; i++)
+                if (bitmap.Width == bitmap.Height)
                 {
-                    int x = i % Size;
-                    int y = i / Size;
-                    rect = new Rectangle(btm_width * x, btm_heigh * y, btm_width, btm_heigh);
-                    var btm = bitmap.Clone(rect, PixelFormat.DontCare);
-                    btm.Save($"{Path}\\{i:d2}.jpeg");
-                    btm.Dispose();
+                    using (Bitmap img = new Bitmap(bitmap, bitmap.Width, bitmap.Height - 4))
+                    {
+                        bitmap = (Bitmap)img.Clone();
+                    }
+
                 }
+                using (Bitmap img = new Bitmap(bitmap))
+                {
+                    using Graphics graphics = Graphics.FromImage(img);
+                    {
+                        //Rectangle rectangle = new Rectangle(System.Drawing.Point.Empty, img.Size);
+                        //ControlPaint.DrawBorder(graphics, rectangle, Color.DarkGray, 1, ButtonBorderStyle.Inset,
+                        //    Color.White, 1, ButtonBorderStyle.Inset, Color.LightGray, 1, ButtonBorderStyle.Inset,
+                        //    Color.Black, 1, ButtonBorderStyle.Inset);
+                        graphics.DrawRectangle(new Pen(Brushes.Silver, 1), new Rectangle(0, 0, img.Width, img.Height));
+                        bitmap = (Bitmap)img.Clone();
+                    }
+                }
+                Btm = bitmap;
+                int btm_width = bitmap.Width / Size;
+                int btm_heigh = bitmap.Height / Size;
+                for (int i = 0; i < Size * Size; i++)
+                    {
+                        int x = i % Size;
+                        int y = i / Size;
+                        rect = new Rectangle(btm_width * x, btm_heigh * y, btm_width, btm_heigh);
+                        var btm = bitmap.Clone(rect, PixelFormat.DontCare);
+                        btm.Save($"{Path}\\{i:d2}.jpg");
+                        btm.Dispose();
+                    }
             }
             catch (Exception ex)
             {
@@ -209,7 +228,7 @@ namespace Puzzles
             {
                 pictureBoxes = new Dictionary<int, PictureBoxE>();
                 int key, rotate;
-                string[] images = Directory.GetFiles(path, "*.jpeg");
+                string[] images = Directory.GetFiles(path, "*.jpg");
                 Size = (int)Math.Sqrt(images.Length);
                 for (int i = 0; i < images.Length; i++)
                 {
@@ -266,7 +285,7 @@ namespace Puzzles
                     {
                         int x = i % Size;
                         int y = i / Size;
-                        pictureBoxes[i].Location = new Point(pictureBoxes[i].Width * x, pictureBoxes[i].Height * y);
+                        pictureBoxes[i].Location = new System.Drawing.Point(pictureBoxes[i].Width * x, pictureBoxes[i].Height * y);
                         pnl_puzzl.Controls.Add(pictureBoxes[i]);
                     }
                 }
@@ -316,13 +335,13 @@ namespace Puzzles
             Color[,] pixels = new Color[btm.Height, btm.Width];
             for (int x = 0; x < btm.Width; x++)
             {
-                pixels[0, x] = btm.GetPixel(x, 0);
-                pixels[btm.Height - 1, x] = btm.GetPixel(x, btm.Height - 1);
+                    pixels[0, x] = btm.GetPixel(x, 0);
+                    pixels[btm.Height - 1, x] = btm.GetPixel(x, btm.Height - 1);
             }
-            for (int y = 1; y < btm.Height-1; y++)
+            for (int y = 1; y < btm.Height - 1; y++)
             {
-                pixels[y, 0] = btm.GetPixel(0, y);
-                pixels[y, btm.Width-1] = btm.GetPixel(btm.Width - 1, y);
+                    pixels[y, 0] = btm.GetPixel(0, y);
+                    pixels[y, btm.Width - 1] = btm.GetPixel(btm.Width - 1, y);
             }
           
             return pixels;
@@ -334,7 +353,7 @@ namespace Puzzles
             int width = px1.GetLength(1);
             for (int i = 0; i < height; i++)
             {
-                difference += GetDifferenceColor(px1[i, width - 1], px2[i, 0]);  
+                difference += GetDifferenceColor(px1[i, width - 1 ], px2[i, 0]);
             }
             return difference;
         }
@@ -345,7 +364,7 @@ namespace Puzzles
             int width = px1.GetLength(1);
             for (int i = 0; i < width; i++)
             {
-                difference += GetDifferenceColor(px1[height - 1, i], px2[0, i]);
+                    difference += GetDifferenceColor(px1[height - 1, i], px2[0, i]);    
             }
             return difference;
         }
@@ -359,7 +378,7 @@ namespace Puzzles
             {
                 Color[,] img_2 = GetPixels(images[i]);
                 double k =  RightLeftCompare(img_1, img_2);
-                if (min > k)
+                if (min > k && k!=0)
                 {
                     result = images[i];
                     min = k;
@@ -378,7 +397,7 @@ namespace Puzzles
             {
                 Color[,] img_2 = GetPixels(images[i]);
                 double k = BottomTopCompare(img_1, img_2);
-                if (min > k)
+                if (min > k && k !=0)
                 {
                     result = images[i];
                     min = k;
@@ -411,7 +430,6 @@ namespace Puzzles
         }
         private void GetPuzzle(Bitmap [] images, ref Bitmap [] puzzles, BackgroundWorker worker)
         {
-
             try
             {
                 Bitmap puzzl;
@@ -430,20 +448,31 @@ namespace Puzzles
                         using Bitmap btm = new Bitmap(compare_btm[count]);
                         btm.RotateFlip(RotateFlipType.Rotate180FlipNone);
                         compare_btm.Add((Bitmap)btm.Clone());
+                        compare_btm[count+size].Tag = count + size + 1;
                     }
                     for (int j = 0; j < images.Length - 1; j++)
                     {
 
                         if (j < countImg - 1)
-                        {         
-                            puzzl = GetNextRightImage(temp_puzzles[j], compare_btm, ref total);
+                        {
+                            puzzl = GetNextRightImage(temp_puzzles[j], compare_btm, ref total);                           
                         }
-                        else if(j % countImg == countImg - 1)
+                        else if (j % countImg == countImg - 1)
                             puzzl = GetNextBottomImage(temp_puzzles[j - countImg + 1], compare_btm, ref total);
+                           
                         else
                         {
-                            puzzl = GetNextRightBottomImg(temp_puzzles[j], temp_puzzles[j - countImg + 1], compare_btm, ref total);
+                            puzzl = GetNextRightBottomImg(temp_puzzles[j], temp_puzzles[j - countImg + 1], compare_btm, ref total);                           
                         }
+                        //if (j % countImg == countImg - 1)
+                        //{
+                        //    puzzl = GetNextBottomImage(temp_puzzles[j - countImg + 1], compare_btm, ref total);
+                        //}
+                        //else
+                        //{
+                        //    puzzl = GetNextRightImage(temp_puzzles[j], compare_btm, ref total);
+                        //}
+
                         temp_puzzles[j + 1] = puzzl;
 
                         int position = compare_btm.IndexOf(puzzl);
@@ -453,10 +482,11 @@ namespace Puzzles
                         compare_btm.RemoveAt(deletePosition);
                         compare_btm.Remove(puzzl);
                     }
+                     
                     if (min > total)
                     {
                         puzzles = temp_puzzles;
-                        min = total;
+                        min = total;   
                     }
                     int percentComplete = (int)((float)i / (float)(images.Length - 1) * 100);
                     if (percentComplete > highestPercentageReached)
@@ -478,22 +508,25 @@ namespace Puzzles
         #endregion
         private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = true;
-            btn_load_puz.Enabled = btn_auto.Enabled = btn_sel_img.Enabled = true;
-            for (int i = 0; i < pictureBoxes.Count; i++)
+            if (pictureBoxes != null)
             {
-                pictureBoxes[i].Enabled = true;
+                rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = true;
+                btn_load_puz.Enabled = btn_auto.Enabled = btn_sel_img.Enabled = true;
+                for (int i = 0; i < pictureBoxes.Count; i++)
+                {
+                    pictureBoxes[i].Enabled = true;
+                }
+                int width = pictureBoxes[0].Image.Width;
+                int heiht = pictureBoxes[0].Image.Height;
+                var btm = ConcatImage(puzzles, width, heiht, Size);
+                if (pb_img.Image == null)
+                {
+                    Btm = btm;
+                    pb_img.Image = btm;
+                }
+
+                label1.Text = "Done";
             }
-            int width = pictureBoxes[0].Image.Width;
-            int heiht = pictureBoxes[0].Image.Height;
-            var btm = ConcatImage(puzzles, width, heiht, Size);
-            if (pb_img.Image == null) 
-            {
-                Btm = btm;
-                pb_img.Image = btm;
-            }
-            
-            label1.Text = "Done";
         }
 
         private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
@@ -514,7 +547,7 @@ namespace Puzzles
         {
             try
             {
-                rb_2.Enabled = rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = rb_6.Enabled = false;
+                rb_3.Enabled = rb_4.Enabled = rb_5.Enabled = false;
                 var pb = (PictureBoxE)sender;
                 pb.DoDragDrop(pb, DragDropEffects.Move);
                 label1.Text = "";
